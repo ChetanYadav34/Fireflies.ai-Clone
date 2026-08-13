@@ -1,12 +1,12 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { 
   fetchMeetingById, 
   fetchMeetingTranscript, 
   fetchMeetingSummary, 
-  fetchMeetingActionItems,
-  API_BASE_URL
+  fetchMeetingActionItems
 } from '@/lib/api'
 import { Sidebar } from '@/components/layout/sidebar'
 import { TopNavbar } from '@/components/layout/top-navbar'
@@ -22,6 +22,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function MeetingDetail({ params }: { params: { id: string } }) {
   const meetingId = params.id
+
+  // Playback Simulation State
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('')
 
   const { data: meeting, isLoading: isMeetingLoading } = useQuery({
     queryKey: ['meeting', meetingId],
@@ -43,11 +50,46 @@ export default function MeetingDetail({ params }: { params: { id: string } }) {
     queryFn: () => fetchMeetingActionItems(meetingId)
   })
 
+  // Simulated Media Player Tick
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setCurrentTime((prev) => {
+          const maxTime = meeting?.duration_seconds || 3600
+          if (prev >= maxTime) {
+            setIsPlaying(false)
+            return maxTime
+          }
+          return prev + 1
+        })
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [isPlaying, meeting?.duration_seconds])
+
+  const togglePlayback = () => setIsPlaying(!isPlaying)
+
+  const handleSeek = (time: number) => {
+    setCurrentTime(time)
+    if (!isPlaying) setIsPlaying(true)
+  }
+
   const formatTimestamp = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
     return `${m}:${s.toString().padStart(2, '0')}`
   }
+
+  const filteredTranscript = transcript?.filter(segment => 
+    segment.text.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    segment.speaker.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || []
+
+  // Progress percentage for progress bar
+  const progressPercent = meeting?.duration_seconds 
+    ? Math.min((currentTime / meeting.duration_seconds) * 100, 100) 
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -85,27 +127,37 @@ export default function MeetingDetail({ params }: { params: { id: string } }) {
               )}
             </div>
 
-            {/* Media Player (Mock) */}
-            <div className="bg-gray-900 aspect-video flex-shrink-0 flex flex-col items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            {/* Media Player (Simulated) */}
+            <div className="bg-gray-900 aspect-video flex-shrink-0 flex flex-col items-center justify-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
               
               <div className="z-10 text-white text-center">
                 <p className="text-sm font-medium mb-4 text-gray-300">Audio Preview</p>
-                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-colors">
-                  <Play className="w-8 h-8 ml-1" />
+                <div 
+                  onClick={togglePlayback}
+                  className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-colors shadow-lg"
+                >
+                  {isPlaying ? (
+                    <Pause className="w-8 h-8" />
+                  ) : (
+                    <Play className="w-8 h-8 ml-1" />
+                  )}
                 </div>
               </div>
 
-              {/* Progress Bar (Mock) */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
+              {/* Progress Bar */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-white font-medium">0:00</span>
-                  <div className="flex-1 h-1 bg-white/20 rounded-full cursor-pointer">
-                    <div className="w-1/3 h-full bg-indigo-500 rounded-full relative">
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow" />
-                    </div>
+                  <span className="text-xs text-white font-medium w-10 text-right">
+                    {formatTimestamp(currentTime)}
+                  </span>
+                  <div className="flex-1 h-1.5 bg-white/30 rounded-full cursor-pointer relative overflow-hidden">
+                    <div 
+                      className="absolute top-0 left-0 bottom-0 bg-indigo-500 transition-all duration-1000 ease-linear"
+                      style={{ width: `${progressPercent}%` }}
+                    />
                   </div>
-                  <span className="text-xs text-white font-medium">
+                  <span className="text-xs text-white font-medium w-10">
                     {meeting?.duration_seconds ? formatTimestamp(meeting.duration_seconds) : "0:00"}
                   </span>
                 </div>
@@ -116,10 +168,12 @@ export default function MeetingDetail({ params }: { params: { id: string } }) {
             <div className="flex-1 flex flex-col min-h-0">
               <div className="p-3 border-b flex-shrink-0 bg-gray-50/50">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                   <Input 
                     placeholder="Search transcript..." 
-                    className="pl-9 h-8 bg-white text-sm"
+                    className="pl-9 h-9 bg-white text-sm"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
@@ -138,32 +192,44 @@ export default function MeetingDetail({ params }: { params: { id: string } }) {
                       </div>
                     ))}
                   </div>
-                ) : transcript && transcript.length > 0 ? (
+                ) : filteredTranscript.length > 0 ? (
                   <div className="space-y-6">
-                    {transcript.map((segment) => (
-                      <div key={segment.id} className="flex gap-4 group">
-                        <Avatar className="w-8 h-8 flex-shrink-0">
-                          <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-medium">
-                            {segment.speaker.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className="font-semibold text-sm text-gray-900">{segment.speaker}</span>
-                            <span className="text-xs text-gray-400 font-medium group-hover:text-indigo-600 transition-colors cursor-pointer">
-                              {formatTimestamp(segment.start_time)}
-                            </span>
+                    {filteredTranscript.map((segment) => {
+                      const isActive = currentTime >= segment.start_time && currentTime <= segment.end_time
+                      
+                      return (
+                        <div 
+                          key={segment.id} 
+                          className={`flex gap-4 group p-2 -mx-2 rounded-lg transition-colors cursor-pointer ${
+                            isActive ? 'bg-indigo-50/80 ring-1 ring-indigo-100' : 'hover:bg-gray-50'
+                          }`}
+                          onClick={() => handleSeek(segment.start_time)}
+                        >
+                          <Avatar className="w-8 h-8 flex-shrink-0">
+                            <AvatarFallback className={`${isActive ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700'} text-xs font-medium transition-colors`}>
+                              {segment.speaker.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-baseline gap-2 mb-1">
+                              <span className={`font-semibold text-sm ${isActive ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                {segment.speaker}
+                              </span>
+                              <span className={`text-xs font-medium transition-colors ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+                                {formatTimestamp(segment.start_time)}
+                              </span>
+                            </div>
+                            <p className={`text-sm leading-relaxed transition-colors ${isActive ? 'text-indigo-900 font-medium' : 'text-gray-700'}`}>
+                              {segment.text}
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-700 leading-relaxed group-hover:bg-indigo-50/50 -mx-2 px-2 py-1 rounded transition-colors">
-                            {segment.text}
-                          </p>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 py-12">
-                    <p>No transcript available.</p>
+                    <p>No transcript segments match your search.</p>
                   </div>
                 )}
               </ScrollArea>
@@ -171,7 +237,7 @@ export default function MeetingDetail({ params }: { params: { id: string } }) {
           </div>
 
           {/* RIGHT PANEL: Insights (Summary & Action Items) */}
-          <div className="w-[360px] flex-shrink-0 bg-gray-50 flex flex-col hidden lg:flex">
+          <div className="w-[360px] flex-shrink-0 bg-gray-50 flex flex-col hidden lg:flex border-l">
             <Tabs defaultValue="summary" className="flex-1 flex flex-col">
               <div className="px-4 pt-4 border-b bg-white">
                 <TabsList className="w-full bg-gray-100/50 p-1">
