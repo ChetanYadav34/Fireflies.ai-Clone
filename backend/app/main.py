@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
+from app.api.routers import meetings, transcripts, summaries, action_items
 
 # We are not doing full API endpoints per instruction.
 # "Do not build API endpoints."
@@ -28,6 +29,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(meetings.router, prefix="/api/v1")
+app.include_router(transcripts.router, prefix="/api/v1")
+app.include_router(transcripts.segment_router, prefix="/api/v1")
+app.include_router(summaries.router, prefix="/api/v1")
+app.include_router(action_items.meeting_action_items_router, prefix="/api/v1")
+app.include_router(action_items.action_items_router, prefix="/api/v1")
 
 @app.get("/")
 def read_root():
