@@ -11,7 +11,7 @@ export default function NotFound() {
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Page not found</h1>
         <p className="text-gray-500">
-          The page you are looking for doesn't exist or has been moved. Let's get you back on track.
+          The page you are looking for doesn&apos;t exist or has been moved. Let&apos;s get you back on track.
         </p>
         <div className="pt-6">
           <Button asChild className="bg-indigo-600 hover:bg-indigo-700">

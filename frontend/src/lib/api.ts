@@ -74,7 +74,7 @@ export async function fetchMeetingTranscript(id: string | number): Promise<Trans
 export async function fetchMeetingSummary(id: string | number): Promise<Summary> {
   const res = await fetch(`${API_BASE_URL}/meetings/${id}/summary`)
   if (!res.ok) {
-    if (res.status === 404) return null as any;
+    if (res.status === 404) return null as unknown as Summary;
     throw new Error('Failed to fetch summary')
   }
   return res.json()
