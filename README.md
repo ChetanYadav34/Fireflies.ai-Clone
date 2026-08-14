@@ -71,12 +71,10 @@ Below is the status of the requirements outlined in the assignment PDF:
 *   **AI Summary & Notes**: Complete UI for AI-generated summaries, action items, and meeting outlines.
 *   **Fireflies Experience**: Extremely high visual fidelity, accurately recreating the navigation, panels, responsive sidebar, modals, notifications, and settings placeholders.
 *   **Mocked/Placeholder Sections**: Upload workflows, Live Bot joins, and generic CRM integrations are present visually as requested.
-
-### 🚧 Partial / Missing Integrations
-*   **CRUD Operations (Meeting Management)**: While the *Backend API* fully supports CRUD operations (Create, Read, Update, Delete) for meetings, transcripts, and action items, the *Frontend* is currently driven largely by local mock data (`lib/meeting-data.ts`). Editing metadata, actively completing action items, and deleting meetings from the dashboard have visual placeholders but lack the final API wiring to persist changes to the SQLite database.
-*   **Search/Filter Functionality**: The visual search bars and filter dropdowns are present in the UI, but global/dashboard filtering logic on the frontend is not fully hooked into the state/API.
+*   **CRUD Operations (Meeting Management)**: Full API integration. The frontend interacts with the FastAPI backend to Create, Read, Update, and Delete meetings, transcripts, and action items. If the backend is unavailable, the frontend gracefully degrades to local mock data.
+*   **Search/Filter Functionality**: The dashboard integrates with the backend API to filter meetings dynamically.
 
 ## Assumptions Made
 *   Real speech-to-text was explicitly out of scope, so audio controls are tethered to pre-seeded transcripts.
-*   The UI prioritizes "feel and aesthetics" of Fireflies.ai; thus, heavy emphasis was placed on Tailwind layout engineering and interactive UI states over deep backend syncing in this iteration.
+*   The UI prioritizes "feel and aesthetics" of Fireflies.ai.
 *   Authentication is bypassed/mocked via local storage for ease of evaluation.

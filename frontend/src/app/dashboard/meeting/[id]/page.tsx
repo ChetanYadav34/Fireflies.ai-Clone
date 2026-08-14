@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Play, Pause, Search, Share2, Download, MoreHorizontal, MessageSquare, Bot, Clock, Calendar, Users, List, Sparkles, Mic, ChevronDown, RotateCcw, RotateCw, Star, Edit3, ThumbsUp, ThumbsDown, Maximize, Minimize, CheckSquare, Square } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { fetchMeetingById, fetchMeetingTranscript, fetchMeetingSummary, fetchMeetingActionItems, updateActionItem, Meeting, TranscriptSegment, Summary, ActionItem } from '@/lib/api'
+import { fetchMeetingById, fetchMeetingTranscript, fetchMeetingSummary, fetchMeetingActionItems, updateActionItem, updateMeeting, Meeting, TranscriptSegment, Summary, ActionItem } from '@/lib/api'
 
 export default function MeetingRecordPage() {
   const params = useParams()
@@ -16,6 +16,10 @@ export default function MeetingRecordPage() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [actionItems, setActionItems] = useState<ActionItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editedTitle, setEditedTitle] = useState('')
+  const [isSavingTitle, setIsSavingTitle] = useState(false)
 
   const [activeTab, setActiveTab] = useState<'askfred' | 'transcript'>('transcript')
   const [isFullScreen, setIsFullScreen] = useState(false)
@@ -41,6 +45,7 @@ export default function MeetingRecordPage() {
           fetchMeetingActionItems(meetingId)
         ])
         setMeeting(m)
+        setEditedTitle(m.title)
         setTranscript(t)
         setSummary(s)
         setActionItems(a)
@@ -59,6 +64,23 @@ export default function MeetingRecordPage() {
       setActionItems(prev => prev.map(a => a.id === item.id ? updated : a))
     } catch(err) {
       console.error(err)
+    }
+  }
+
+  const handleSaveTitle = async () => {
+    if (!meeting || !editedTitle.trim() || editedTitle === meeting.title) {
+      setIsEditingTitle(false)
+      return
+    }
+    setIsSavingTitle(true)
+    try {
+      const updated = await updateMeeting(meeting.id, editedTitle)
+      setMeeting(updated)
+      setIsEditingTitle(false)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsSavingTitle(false)
     }
   }
 
@@ -122,8 +144,37 @@ export default function MeetingRecordPage() {
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span>#My Meetings</span>
             <span className="text-gray-300">/</span>
-            <span className="font-medium text-gray-900">{meeting.title}</span>
-            <MoreHorizontal className="w-4 h-4 ml-2" />
+            {isEditingTitle ? (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  value={editedTitle} 
+                  onChange={e => setEditedTitle(e.target.value)}
+                  className="font-medium text-gray-900 border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary w-48"
+                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && handleSaveTitle()}
+                />
+                <button 
+                  onClick={handleSaveTitle} 
+                  disabled={isSavingTitle}
+                  className="text-xs bg-primary text-white px-2 py-1 rounded hover:bg-primary/90 disabled:opacity-50"
+                >
+                  Save
+                </button>
+                <button 
+                  onClick={() => setIsEditingTitle(false)}
+                  className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingTitle(true)}>
+                <span className="font-medium text-gray-900 group-hover:text-primary transition-colors">{meeting.title}</span>
+                <Edit3 className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+            {!isEditingTitle && <MoreHorizontal className="w-4 h-4 ml-2" />}
           </div>
           <div className="flex items-center gap-3">
             <button className="text-primary font-semibold text-sm hover:underline px-2">Upgrade</button>

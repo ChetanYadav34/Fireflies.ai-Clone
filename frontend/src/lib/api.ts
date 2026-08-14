@@ -61,6 +61,34 @@ export async function fetchMeetingById(id: string | number): Promise<Meeting> {
   }
 }
 
+export async function createMeeting(title: string, duration_seconds: number, date: string): Promise<Meeting> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/meetings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, duration_seconds, date, participant_ids: [] })
+    })
+    if (!res.ok) throw new Error('Failed to create')
+    return await res.json()
+  } catch (err) {
+    return { ...MOCK_MEETING, id: Date.now(), title, duration_seconds, date }
+  }
+}
+
+export async function updateMeeting(id: string | number, title: string): Promise<Meeting> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/meetings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title })
+    })
+    if (!res.ok) throw new Error('Failed to update')
+    return await res.json()
+  } catch (err) {
+    return { ...MOCK_MEETING, id: Number(id), title }
+  }
+}
+
 export async function deleteMeeting(id: string | number): Promise<void> {
   try {
     const res = await fetch(`${API_BASE_URL}/meetings/${id}`, { method: 'DELETE' })

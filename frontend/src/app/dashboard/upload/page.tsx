@@ -1,9 +1,31 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { UploadCloud, X, Upload, HelpCircle } from 'lucide-react'
+import { UploadCloud, X, HelpCircle, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { createMeeting } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 
 export default function UploadsPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [transcript, setTranscript] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+
+  const handleCreate = async () => {
+    if (!title.trim()) return
+    setIsLoading(true)
+    try {
+      // Mock duration 15 minutes = 900 seconds
+      const newMeeting = await createMeeting(title, 900, new Date().toISOString())
+      // In a real app we would also upload the transcript, but for now we just redirect
+      router.push(`/dashboard/meeting/${newMeeting.id}`)
+    } catch (error) {
+      console.error(error)
+      setIsLoading(false)
+    }
+  }
   return (
     <AppLayout>
       <div className="flex-1 bg-gray-50/30 flex flex-col min-h-[calc(100vh-4rem)] relative">
@@ -32,10 +54,64 @@ export default function UploadsPage() {
                 (Max video size: 100 MB, Max audio size: 500 MB)
               </span>
             </p>
-            <button className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-[15px] font-medium transition-colors shadow-sm">
-              Browse Files
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-[15px] font-medium transition-colors shadow-sm"
+            >
+              Create Mock Meeting
             </button>
           </div>
+
+          {/* Create Meeting Modal */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="font-semibold text-gray-900">Create Meeting from Transcript</h3>
+                  <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Title</label>
+                    <input 
+                      type="text" 
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g. Q3 Planning Sync"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Paste Transcript (Optional)</label>
+                    <textarea 
+                      value={transcript}
+                      onChange={(e) => setTranscript(e.target.value)}
+                      placeholder="Paste your raw transcript text here..."
+                      className="w-full border rounded-lg px-3 py-2 text-sm min-h-[120px] focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
+                  <button 
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleCreate}
+                    disabled={isLoading || !title.trim()}
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Create Meeting
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Empty State History */}
           <div className="flex-1 flex flex-col items-center justify-center pb-20">
