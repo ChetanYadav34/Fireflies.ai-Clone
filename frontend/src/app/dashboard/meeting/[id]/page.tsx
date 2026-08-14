@@ -34,6 +34,12 @@ export default function MeetingRecordPage() {
 
   const audioRef = useRef<HTMLAudioElement>(null)
 
+  const [isEditingParticipants, setIsEditingParticipants] = useState(false)
+  const [newParticipant, setNewParticipant] = useState('')
+  const [participants, setParticipants] = useState<{id: number, name: string}[]>([])
+
+  const [newActionItem, setNewActionItem] = useState('')
+
   useEffect(() => {
     if (!meetingId) return;
     async function loadData() {
@@ -46,6 +52,7 @@ export default function MeetingRecordPage() {
         ])
         setMeeting(m)
         setEditedTitle(m.title)
+        setParticipants(m.participants || [{ id: 1, name: "User" }])
         setTranscript(t)
         setSummary(s)
         setActionItems(a)
@@ -57,6 +64,29 @@ export default function MeetingRecordPage() {
     }
     loadData()
   }, [meetingId])
+
+  const handleAddParticipant = () => {
+    if (newParticipant.trim()) {
+      setParticipants([...participants, { id: Date.now(), name: newParticipant.trim() }])
+      setNewParticipant('')
+    }
+  }
+
+  const handleRemoveParticipant = (id: number) => {
+    setParticipants(participants.filter(p => p.id !== id))
+  }
+
+  const handleAddActionItem = () => {
+    if (newActionItem.trim()) {
+      setActionItems([...actionItems, {
+        id: Date.now(),
+        meeting_id: Number(meetingId),
+        task_description: newActionItem.trim(),
+        is_completed: false
+      }])
+      setNewActionItem('')
+    }
+  }
 
   const toggleActionItem = async (item: ActionItem) => {
     try {
@@ -144,45 +174,79 @@ export default function MeetingRecordPage() {
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span>#My Meetings</span>
             <span className="text-gray-300">/</span>
-            {isEditingTitle ? (
-              <div className="flex items-center gap-2">
-                <input 
-                  type="text" 
-                  value={editedTitle} 
-                  onChange={e => setEditedTitle(e.target.value)}
-                  className="font-medium text-gray-900 border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary w-48"
-                  autoFocus
-                  onKeyDown={e => e.key === 'Enter' && handleSaveTitle()}
-                />
-                <button 
-                  onClick={handleSaveTitle} 
-                  disabled={isSavingTitle}
-                  className="text-xs bg-primary text-white px-2 py-1 rounded hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={() => setIsEditingTitle(false)}
-                  className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingTitle(true)}>
-                <span className="font-medium text-gray-900 group-hover:text-primary transition-colors">{meeting.title}</span>
-                <Edit3 className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            )}
+            <div className="flex flex-col relative">
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    value={editedTitle} 
+                    onChange={e => setEditedTitle(e.target.value)}
+                    className="font-medium text-gray-900 border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary w-48"
+                    autoFocus
+                    onKeyDown={e => e.key === 'Enter' && handleSaveTitle()}
+                  />
+                  <button 
+                    onClick={handleSaveTitle} 
+                    disabled={isSavingTitle}
+                    className="text-xs bg-primary text-white px-2 py-1 rounded hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => setIsEditingTitle(false)}
+                    className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingTitle(true)}>
+                  <span className="font-medium text-gray-900 group-hover:text-primary transition-colors">{meeting.title}</span>
+                  <Edit3 className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              )}
+            </div>
             {!isEditingTitle && <MoreHorizontal className="w-4 h-4 ml-2" />}
           </div>
           <div className="flex items-center gap-3">
             <button className="text-primary font-semibold text-sm hover:underline px-2">Upgrade</button>
             <div className="w-px h-4 bg-gray-200"></div>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              <Users className="w-4 h-4" />
-              1 View
-            </button>
+            
+            {/* Participants UI */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsEditingParticipants(!isEditingParticipants)}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                {participants.length} {participants.length === 1 ? 'Participant' : 'Participants'}
+              </button>
+              {isEditingParticipants && (
+                <div className="absolute top-full mt-2 right-0 w-64 bg-white border border-gray-200 rounded-lg shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Participants</h4>
+                  <div className="space-y-1 mb-3 max-h-32 overflow-y-auto">
+                    {participants.map(p => (
+                      <div key={p.id} className="flex items-center justify-between group">
+                        <span className="text-sm text-gray-700 font-medium">{p.name}</span>
+                        <button onClick={() => handleRemoveParticipant(p.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newParticipant}
+                      onChange={e => setNewParticipant(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAddParticipant()}
+                      placeholder="Add participant..." 
+                      className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm outline-none focus:border-primary"
+                    />
+                    <button onClick={handleAddParticipant} className="bg-primary hover:bg-primary/90 text-white px-2 py-1 rounded text-sm font-medium">Add</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button className="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
               <Share2 className="w-4 h-4" />
               Share
@@ -233,23 +297,42 @@ export default function MeetingRecordPage() {
                   )}
                 </div>
 
-                {actionItems.length > 0 && (
-                  <>
-                    <h3 className="font-bold text-gray-900 text-lg mt-12 mb-4">Action Items</h3>
-                    <div className="space-y-3">
-                      {actionItems.map(item => (
-                        <div key={item.id} className="flex items-start gap-3 p-3 bg-gray-50 border border-gray-100 rounded-lg">
-                          <button onClick={() => toggleActionItem(item)} className="mt-0.5 text-primary">
-                            {item.is_completed ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-400" />}
-                          </button>
-                          <span className={`text-sm ${item.is_completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                            {item.task_description}
-                          </span>
-                        </div>
-                      ))}
+                <h3 className="font-bold text-gray-900 text-lg mt-12 mb-4">Action Items</h3>
+                <div className="space-y-3">
+                  {actionItems.length === 0 && (
+                    <p className="text-gray-500 italic text-sm">No action items yet.</p>
+                  )}
+                  {actionItems.map(item => (
+                    <div key={item.id} className="flex items-start gap-3 p-3 bg-gray-50 border border-gray-100 rounded-lg group">
+                      <button onClick={() => toggleActionItem(item)} className="mt-0.5 text-primary shrink-0">
+                        {item.is_completed ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-400" />}
+                      </button>
+                      <input 
+                        type="text"
+                        value={item.task_description}
+                        onChange={(e) => setActionItems(prev => prev.map(a => a.id === item.id ? { ...a, task_description: e.target.value } : a))}
+                        className={`text-sm flex-1 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-primary outline-none transition-colors ${item.is_completed ? 'line-through text-gray-400' : 'text-gray-700'}`}
+                      />
+                      <button onClick={() => setActionItems(actionItems.filter(a => a.id !== item.id))} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-lg leading-none">×</span>
+                      </button>
                     </div>
-                  </>
-                )}
+                  ))}
+                  
+                  <div className="flex gap-2 pt-2">
+                    <input 
+                      type="text" 
+                      value={newActionItem}
+                      onChange={e => setNewActionItem(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAddActionItem()}
+                      placeholder="Add a new action item..." 
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-primary transition-colors"
+                    />
+                    <button onClick={handleAddActionItem} className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                      Add
+                    </button>
+                  </div>
+                </div>
 
                 <div className="mt-12 flex items-center justify-center gap-3 bg-gray-50 py-3 rounded-xl border border-gray-100">
                   <span className="text-sm text-gray-500">Did you like the summary?</span>

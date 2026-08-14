@@ -2,6 +2,15 @@
 
 A fullstack clone of the Fireflies.ai meeting-assistant web application. This project faithfully replicates the design, user experience, and core post-meeting workflows of the original application, providing an immersive, productivity-focused workspace for managing meetings, transcripts, and AI-generated summaries.
 
+- **Dashboard**: Central hub for managing meetings, uploading recordings, and reviewing transcripts.
+- **Meeting Details Page**: Displays transcript, summary, participants, and action items.
+
+## 🧭 Navigation & UI Guide
+- **Authentication**: This app currently does not support real Google/SSO login. To access the dashboard, simply click **"Continue with Email"** and provide *any* email and password. It will mock the authentication and let you right in.
+- **Dead Ends / Placeholders**: Some buttons (like mobile app download, or upgrading) are purely visual placeholders to match the real Fireflies UI and will show a "Coming Soon" toast message when clicked.
+- **Global Search**: You can use the top navigation bar's search input to filter meetings in your dashboard.
+- **Meeting Management**: Once in a meeting, you can edit the title, add/remove participants, and create or check off Action Items.
+
 ## Tech Stack
 
 *   **Frontend**: Next.js 14 (App Router), React, TypeScript, Tailwind CSS, Lucide Icons.

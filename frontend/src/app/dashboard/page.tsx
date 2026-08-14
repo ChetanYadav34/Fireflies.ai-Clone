@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { 
   MessageSquare, Info, Calendar, CheckSquare, ChevronRight, 
   Plus, Video, Settings, Monitor, Smartphone, Mic, Layers, HelpCircle,
@@ -10,11 +11,37 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useModals } from '@/components/layout/modal-context'
+import { fetchMeetings, Meeting } from '@/lib/api'
+import { toast } from 'sonner'
 
-export default function HomePage() {
+function DashboardContent() {
+  const searchParams = useSearchParams()
+  const searchQuery = searchParams.get('search') || ''
+  
   const [activeTab, setActiveTab] = useState<'recent' | 'upcoming' | 'ai-feed'>('recent')
   const [isAssistantEnabled, setIsAssistantEnabled] = useState(true)
   const { setCaptureOpen, setFeedbackOpen, setSettingsOpen, setAssistantOpen } = useModals()
+  const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const data = await fetchMeetings(searchQuery)
+        setMeetings(data.items)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [searchQuery])
+
+  const handlePlaceholderClick = () => {
+    toast.info("This feature is a visual placeholder for the assignment evaluation.")
+  }
 
   return (
     <AppLayout>
@@ -173,21 +200,31 @@ export default function HomePage() {
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden min-h-[200px]">
             {activeTab === 'recent' && (
               <div className="divide-y divide-gray-100">
-                <Link href="/dashboard/meeting" className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer group block">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0">
-                      <Image src="/download.png" alt="Fireflies" width={24} height={24} className="w-6 h-6 object-contain" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">fireflies test</div>
-                      <div className="text-[13px] text-gray-500">Aug 14 • 12:22 AM</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="text-gray-400 hover:text-gray-600"><Layers className="w-4 h-4" /></button>
-                    <button className="text-gray-400 hover:text-gray-600">•••</button>
-                  </div>
-                </Link>
+                {loading ? (
+                  <div className="p-8 text-center text-gray-500 text-sm font-medium">Loading meetings...</div>
+                ) : meetings.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 text-sm font-medium">No meetings found. {searchQuery && 'Try adjusting your search.'}</div>
+                ) : (
+                  meetings.map(meeting => (
+                    <Link key={meeting.id} href={`/dashboard/meeting/${meeting.id}`} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer group block">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+                          <Image src="/download.png" alt="Fireflies" width={24} height={24} className="w-6 h-6 object-contain" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">{meeting.title}</div>
+                          <div className="text-[13px] text-gray-500">
+                            {new Date(meeting.date).toLocaleDateString()} • {Math.floor(meeting.duration_seconds / 60)} mins
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="text-gray-400 hover:text-gray-600"><Layers className="w-4 h-4" /></button>
+                        <button className="text-gray-400 hover:text-gray-600">•••</button>
+                      </div>
+                    </Link>
+                  ))
+                )}
                 
                 <div className="p-6 flex justify-center">
                   <span className="px-3 py-1 bg-purple-50 text-primary text-xs font-medium rounded-full">All caught up!</span>
@@ -252,7 +289,7 @@ export default function HomePage() {
               <p className="text-sm text-gray-600 mb-6 min-h-[40px]">
                 Capture conversations without any bot present in your meeting.
               </p>
-              <button className="bg-primary hover:bg-primary/90 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors">
+              <button onClick={handlePlaceholderClick} className="bg-primary hover:bg-primary/90 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors">
                 Download
               </button>
             </div>
@@ -266,13 +303,13 @@ export default function HomePage() {
                 Record in-person conversations and review meetings on the go.
               </p>
               <div className="flex gap-3">
-                <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg p-2.5 transition-colors">
+                <button onClick={handlePlaceholderClick} className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg p-2.5 transition-colors">
                   {/* Apple Icon */}
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.05 2.53.68 3.14.68.65 0 1.95-.73 3.41-.63 1.39.06 2.65.55 3.53 1.54-3.02 1.65-2.55 5.56.32 6.64-1.05 2.15-2.22 4.19-2.4 3.74zm-2.92-14.8c.61-1.35.53-2.79-.19-3.95-1.32.18-2.73.95-3.47 2.18-.55 1.1-.73 2.5.02 3.73 1.33-.2 2.76-1.12 3.64-1.96z"/>
                   </svg>
                 </button>
-                <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg p-2.5 transition-colors">
+                <button onClick={handlePlaceholderClick} className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg p-2.5 transition-colors">
                   {/* Google Play Icon */}
                   <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3.73 2.51c-.13.13-.23.36-.23.68v17.62c0 .32.1.55.23.68l.06.06 9.87-9.87v-.12L3.79 2.45l-.06.06zM14.54 12.5l2.4 2.4-3.28 1.89-6.3-6.29 7.18 2zM19.12 9.85l-2.18-1.25-2.4 2.4v.12l2.4 2.4 2.18-1.25c.62-.35.62-1.67 0-2.02v-.4zM16.94 8.6L9.76 4.5l3.88 3.88 3.3-2zM3.5 12h-2c0-5.52 4.48-10 10-10v2c-4.41 0-8 3.59-8 8z" fill="currentColor"/>
@@ -296,16 +333,16 @@ export default function HomePage() {
             />
           </div>
           <div className="flex items-center gap-2 text-gray-400">
-            <Layers className="w-5 h-5 hover:text-gray-600 cursor-pointer" />
-            <Mic className="w-5 h-5 hover:text-gray-600 cursor-pointer" />
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white cursor-pointer hover:bg-primary/90 ml-1">
+            <Layers onClick={handlePlaceholderClick} className="w-5 h-5 hover:text-gray-600 cursor-pointer" />
+            <Mic onClick={handlePlaceholderClick} className="w-5 h-5 hover:text-gray-600 cursor-pointer" />
+            <div onClick={handlePlaceholderClick} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white cursor-pointer hover:bg-primary/90 ml-1">
               <ArrowUp className="w-4 h-4" />
             </div>
           </div>
         </div>
       </div>
 
-      <button className="fixed bottom-8 right-8 w-12 h-12 bg-[#5E35B1] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#5E35B1]/90 transition-colors z-40">
+      <button onClick={handlePlaceholderClick} className="fixed bottom-8 right-8 w-12 h-12 bg-[#5E35B1] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#5E35B1]/90 transition-colors z-40">
         <HelpCircle className="w-6 h-6" />
       </button>
       </div>
@@ -313,3 +350,14 @@ export default function HomePage() {
   )
 }
 
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center text-gray-500">
+        Loading...
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  )
+}
