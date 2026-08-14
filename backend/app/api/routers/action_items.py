@@ -17,6 +17,15 @@ action_items_router = APIRouter(
     tags=["Action Items"]
 )
 
+@meeting_action_items_router.get("", response_model=List[schemas.ActionItem])
+def get_action_items(meeting_id: int, db: Session = Depends(get_db)):
+    meeting = db.query(models.Meeting).filter(models.Meeting.id == meeting_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+        
+    items = db.query(models.ActionItem).filter(models.ActionItem.meeting_id == meeting_id).all()
+    return items
+
 @meeting_action_items_router.post("", response_model=schemas.ActionItem, status_code=201)
 def create_action_item(meeting_id: int, action_item_in: schemas.ActionItemCreate, db: Session = Depends(get_db)):
     meeting = db.query(models.Meeting).filter(models.Meeting.id == meeting_id).first()

@@ -15,10 +15,11 @@ export default function NotFound() {
         </p>
         <div className="pt-6">
           <Button asChild className="bg-indigo-600 hover:bg-indigo-700">
-            <Link href="/">Return to Dashboard</Link>
+            <Link href="/dashboard">Return to Dashboard</Link>
           </Button>
         </div>
       </div>
     </div>
   )
 }
+

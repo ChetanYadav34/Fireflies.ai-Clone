@@ -6,8 +6,14 @@ import Providers from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Fireflies.ai Clone",
-  description: "Meeting transcription and intelligence platform",
+  title: {
+    template: '%s | Fireflies.ai',
+    default: 'Home | Fireflies.ai',
+  },
+  description: 'AI meeting assistant for transcription and notes',
+  icons: {
+    icon: '/download.png',
+  },
 };
 
 export default function RootLayout({
@@ -25,3 +31,4 @@ export default function RootLayout({
     </html>
   );
 }
+
