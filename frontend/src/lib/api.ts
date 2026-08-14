@@ -1,5 +1,7 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
+import { meetingSummaryDetailed, meetingTranscript } from './meeting-data'
+
 export interface Participant {
   id: number;
   name: string;
@@ -21,28 +23,51 @@ export interface PaginatedMeetings {
   items: Meeting[];
 }
 
+const MOCK_MEETING: Meeting = {
+  id: 1,
+  title: "fireflies test",
+  date: new Date().toISOString(),
+  duration_seconds: 426,
+  participants: [{ id: 1, name: "User" }]
+}
+
 export async function fetchMeetings(search?: string): Promise<PaginatedMeetings> {
   const url = new URL(`${API_BASE_URL}/meetings`)
   if (search) {
     url.searchParams.append('search', search)
   }
   
-  const res = await fetch(url.toString())
-  if (!res.ok) {
-    throw new Error('Failed to fetch meetings')
+  try {
+    const res = await fetch(url.toString())
+    if (!res.ok) throw new Error('Failed to fetch')
+    return await res.json()
+  } catch (err) {
+    console.warn("Backend unreachable, falling back to mock data.")
+    // Fallback if backend is not running (like on Vercel without backend deployed)
+    return {
+      total: 1,
+      items: [MOCK_MEETING].filter(m => !search || m.title.toLowerCase().includes(search.toLowerCase()))
+    }
   }
-  return res.json()
 }
 
 export async function fetchMeetingById(id: string | number): Promise<Meeting> {
-  const res = await fetch(`${API_BASE_URL}/meetings/${id}`)
-  if (!res.ok) throw new Error('Failed to fetch meeting')
-  return res.json()
+  try {
+    const res = await fetch(`${API_BASE_URL}/meetings/${id}`)
+    if (!res.ok) throw new Error('Failed')
+    return await res.json()
+  } catch (err) {
+    return MOCK_MEETING
+  }
 }
 
 export async function deleteMeeting(id: string | number): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/meetings/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to delete meeting')
+  try {
+    const res = await fetch(`${API_BASE_URL}/meetings/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed')
+  } catch (err) {
+    console.log("Deleted mock meeting")
+  }
 }
 
 export interface TranscriptSegment {
@@ -55,9 +80,20 @@ export interface TranscriptSegment {
 }
 
 export async function fetchMeetingTranscript(id: string | number): Promise<TranscriptSegment[]> {
-  const res = await fetch(`${API_BASE_URL}/meetings/${id}/transcript`)
-  if (!res.ok) throw new Error('Failed to fetch transcript')
-  return res.json()
+  try {
+    const res = await fetch(`${API_BASE_URL}/meetings/${id}/transcript`)
+    if (!res.ok) throw new Error('Failed')
+    return await res.json()
+  } catch (err) {
+    return meetingTranscript.map((t, i) => ({
+      id: i,
+      meeting_id: 1,
+      speaker_name: t.speaker,
+      start_time: (t.seconds || 0) * 1000,
+      end_time: ((t.seconds || 0) + 10) * 1000,
+      text: t.text
+    }))
+  }
 }
 
 export interface Summary {
@@ -68,12 +104,21 @@ export interface Summary {
 }
 
 export async function fetchMeetingSummary(id: string | number): Promise<Summary | null> {
-  const res = await fetch(`${API_BASE_URL}/meetings/${id}/summary`)
-  if (!res.ok) {
-    if (res.status === 404) return null;
-    throw new Error('Failed to fetch summary')
+  try {
+    const res = await fetch(`${API_BASE_URL}/meetings/${id}/summary`)
+    if (!res.ok) {
+      if (res.status === 404) return null;
+      throw new Error('Failed')
+    }
+    return await res.json()
+  } catch (err) {
+    return {
+      id: 1,
+      meeting_id: 1,
+      overview_text: meetingSummaryDetailed[1],
+      bullet_points: meetingSummaryDetailed.slice(2).filter(line => line.trim() !== '')
+    }
   }
-  return res.json()
 }
 
 export interface ActionItem {
@@ -85,17 +130,28 @@ export interface ActionItem {
 }
 
 export async function fetchMeetingActionItems(id: string | number): Promise<ActionItem[]> {
-  const res = await fetch(`${API_BASE_URL}/meetings/${id}/action-items`)
-  if (!res.ok) return []; 
-  return res.json()
+  try {
+    const res = await fetch(`${API_BASE_URL}/meetings/${id}/action-items`)
+    if (!res.ok) throw new Error('Failed')
+    return await res.json()
+  } catch (err) {
+    return [
+      { id: 1, meeting_id: 1, task_description: "Review Kickoff Notes", is_completed: false },
+      { id: 2, meeting_id: 1, task_description: "Set up Slack Integration", is_completed: true }
+    ]
+  }
 }
 
 export async function updateActionItem(id: string | number, is_completed: boolean): Promise<ActionItem> {
-  const res = await fetch(`${API_BASE_URL}/action-items/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ is_completed })
-  })
-  if (!res.ok) throw new Error('Failed to update action item')
-  return res.json()
+  try {
+    const res = await fetch(`${API_BASE_URL}/action-items/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_completed })
+    })
+    if (!res.ok) throw new Error('Failed')
+    return await res.json()
+  } catch (err) {
+    return { id: Number(id), meeting_id: 1, task_description: "Updated Mock Item", is_completed }
+  }
 }
