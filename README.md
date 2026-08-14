@@ -74,6 +74,18 @@ Below is the status of the requirements outlined in the assignment PDF:
 *   **CRUD Operations (Meeting Management)**: Full API integration. The frontend interacts with the FastAPI backend to Create, Read, Update, and Delete meetings, transcripts, and action items. If the backend is unavailable, the frontend gracefully degrades to local mock data.
 *   **Search/Filter Functionality**: The dashboard integrates with the backend API to filter meetings dynamically.
 
+## Navigation Guide & Features
+
+To help you explore the application during evaluation, here is a quick guide to its features and navigation:
+
+*   **Login / Authentication**: The application does *not* support direct Google Login (OAuth is mocked). To enter the dashboard, simply type **any random email and password** on the login/signup screen and click submit. You will be instantly redirected to the dashboard.
+*   **Meeting Management (CRUD)**:
+    *   **Create**: Navigate to the "Uploads" page via the sidebar. Click "Create Mock Meeting" to generate a new meeting entry.
+    *   **Edit**: Click on any meeting in your dashboard to view its details. Click the meeting title at the top of the page (next to `#My Meetings`) to inline-edit and rename it.
+    *   **Delete**: From the main dashboard, click the trash can icon on a meeting row to delete it.
+*   **Interactive Transcript**: On the meeting detail page, click any timestamp in the transcript to jump the audio player to that exact moment.
+*   **Action Items**: In the "Notes" section of the meeting detail view, you can check off action items to mark them as completed.
+
 ## Assumptions Made
 *   Real speech-to-text was explicitly out of scope, so audio controls are tethered to pre-seeded transcripts.
 *   The UI prioritizes "feel and aesthetics" of Fireflies.ai.
