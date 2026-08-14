@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { useModals } from './modal-context'
 
 const formatPageTitle = (pathname: string) => {
@@ -64,9 +65,11 @@ export function TopNavbar() {
       
       {/* Right - Actions */}
       <div className="flex items-center gap-3 ml-auto">
-        <Button variant="outline" size="sm" className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 border-emerald-100 h-8 text-[13px] font-medium px-3">
-          Upgrade
-        </Button>
+        <Link href="/dashboard/upgrade">
+          <Button variant="outline" size="sm" className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 border-emerald-100 h-8 text-[13px] font-medium px-3">
+            Upgrade
+          </Button>
+        </Link>
         
         <div 
           onClick={() => setCaptureOpen(true)}
