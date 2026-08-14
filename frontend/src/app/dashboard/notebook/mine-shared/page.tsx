@@ -1,11 +1,42 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { fetchMeetings, deleteMeeting, Meeting } from '@/lib/api'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { Video, Bot, Search, Plus, SlidersHorizontal, MessageSquare, ChevronDown, Mic, ArrowUp, Layers, MoreVertical, ChevronRight } from 'lucide-react'
+import { Video, Bot, Search, Plus, SlidersHorizontal, MessageSquare, ChevronDown, Mic, ArrowUp, Layers, MoreVertical, ChevronRight, Trash2 } from 'lucide-react'
 
 export default function MeetingsPage() {
   const [activeView, setActiveView] = useState<'my-meetings' | 'all-meetings' | 'voice-agents'>('my-meetings')
+  const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (activeView === 'my-meetings' || activeView === 'all-meetings') {
+      setLoading(true)
+      fetchMeetings(searchQuery).then(data => {
+        setMeetings(data.items)
+        setLoading(false)
+      }).catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
+    }
+  }, [activeView, searchQuery])
+
+  const handleDelete = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (confirm('Are you sure you want to delete this meeting?')) {
+      try {
+        await deleteMeeting(id)
+        setMeetings(meetings.filter(m => m.id !== id))
+      } catch(err) {
+        alert('Failed to delete meeting')
+      }
+    }
+  }
 
   return (
     <AppLayout>
@@ -18,7 +49,9 @@ export default function MeetingsPage() {
                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                 <input 
                   type="text" 
-                  placeholder="Search channels" 
+                  placeholder="Search channels or meetings..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
                 />
               </div>
@@ -111,36 +144,49 @@ export default function MeetingsPage() {
                   </div>
 
                   {/* Meeting Item */}
-                  <div 
-                    onClick={() => window.location.href = '/dashboard/meeting'}
-                    className="group flex items-center justify-between p-4 bg-white hover:bg-gray-50/80 border border-transparent hover:border-gray-200 rounded-xl transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm shadow-sm border border-blue-200">
-                        G
-                      </div>
-                      <div>
-                        <h3 className="text-[15px] font-semibold text-gray-900 mb-0.5">fireflies test</h3>
-                        <div className="flex items-center gap-2 text-[13px] text-gray-500">
-                          <span>User</span>
-                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                          <span>Today, 10:00 AM</span>
-                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                          <span>45 min</span>
+                  {loading ? (
+                    <div className="p-8 text-center text-gray-500">Loading meetings...</div>
+                  ) : meetings.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">No meetings found.</div>
+                  ) : (
+                    meetings.map(meeting => (
+                      <div 
+                        key={meeting.id}
+                        onClick={() => router.push(`/dashboard/meeting/${meeting.id}`)}
+                        className="group flex items-center justify-between p-4 bg-white hover:bg-gray-50/80 border border-transparent hover:border-gray-200 rounded-xl transition-all cursor-pointer mb-2"
+                      >
+                        <div className="flex items-center gap-4">
+                          <input type="checkbox" onClick={e => e.stopPropagation()} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm shadow-sm border border-blue-200">
+                            {meeting.title.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="text-[15px] font-semibold text-gray-900 mb-0.5">{meeting.title}</h3>
+                            <div className="flex items-center gap-2 text-[13px] text-gray-500">
+                              <span>{meeting.participants?.map(p => p.name).join(', ') || 'Unknown'}</span>
+                              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                              <span>{new Date(meeting.date).toLocaleDateString()}</span>
+                              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                              <span>{Math.round(meeting.duration_seconds / 60)} min</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={(e) => handleDelete(meeting.id, e)}
+                            className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Delete Meeting"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                          <button className="flex items-center gap-1 bg-white border border-gray-200 shadow-sm px-4 py-2 rounded-lg text-[13px] font-semibold text-gray-700 hover:bg-gray-50">
+                            Details <ChevronRight className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
-                      <button className="flex items-center gap-1 bg-white border border-gray-200 shadow-sm px-4 py-2 rounded-lg text-[13px] font-semibold text-gray-700 hover:bg-gray-50">
-                        Details <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                    ))
+                  )}
                   
                   <div className="text-center text-sm text-gray-400 mt-8">
                     You've reached the end of your meetings.

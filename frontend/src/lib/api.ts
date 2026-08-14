@@ -1,7 +1,7 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000/api/v1'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 export interface Participant {
-  id: int;
+  id: number;
   name: string;
   email?: string;
   avatar_url?: string;
@@ -34,35 +34,24 @@ export async function fetchMeetings(search?: string): Promise<PaginatedMeetings>
   return res.json()
 }
 
-export interface TranscriptSegment {
-  id: number;
-  meeting_id: number;
-  speaker: string;
-  start_time: number;
-  end_time: number;
-  text: string;
-}
-
-export interface Summary {
-  id: number;
-  meeting_id: number;
-  overview: string;
-  shorthand_bullet_points?: string[];
-  outline?: string;
-}
-
-export interface ActionItem {
-  id: number;
-  meeting_id: number;
-  description: string;
-  owner_id?: number;
-  is_completed: boolean;
-}
-
 export async function fetchMeetingById(id: string | number): Promise<Meeting> {
   const res = await fetch(`${API_BASE_URL}/meetings/${id}`)
   if (!res.ok) throw new Error('Failed to fetch meeting')
   return res.json()
+}
+
+export async function deleteMeeting(id: string | number): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/meetings/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('Failed to delete meeting')
+}
+
+export interface TranscriptSegment {
+  id: number;
+  meeting_id: number;
+  speaker_name: string;
+  start_time: number;
+  end_time: number;
+  text: string;
 }
 
 export async function fetchMeetingTranscript(id: string | number): Promise<TranscriptSegment[]> {
@@ -71,17 +60,42 @@ export async function fetchMeetingTranscript(id: string | number): Promise<Trans
   return res.json()
 }
 
-export async function fetchMeetingSummary(id: string | number): Promise<Summary> {
+export interface Summary {
+  id: number;
+  meeting_id: number;
+  overview_text: string;
+  bullet_points?: string[];
+}
+
+export async function fetchMeetingSummary(id: string | number): Promise<Summary | null> {
   const res = await fetch(`${API_BASE_URL}/meetings/${id}/summary`)
   if (!res.ok) {
-    if (res.status === 404) return null as unknown as Summary;
+    if (res.status === 404) return null;
     throw new Error('Failed to fetch summary')
   }
   return res.json()
 }
 
+export interface ActionItem {
+  id: number;
+  meeting_id: number;
+  task_description: string;
+  owner_id?: number;
+  is_completed: boolean;
+}
+
 export async function fetchMeetingActionItems(id: string | number): Promise<ActionItem[]> {
-  const res = await fetch(`${API_BASE_URL}/action-items?meeting_id=${id}`)
-  if (!res.ok) return []; // Since we haven't added a dedicated GET /action-items?meeting_id in backend yet, or we'll fetch them differently. Wait, I should add the meeting_action_items GET endpoint or just fetch it.
+  const res = await fetch(`${API_BASE_URL}/meetings/${id}/action-items`)
+  if (!res.ok) return []; 
+  return res.json()
+}
+
+export async function updateActionItem(id: string | number, is_completed: boolean): Promise<ActionItem> {
+  const res = await fetch(`${API_BASE_URL}/action-items/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_completed })
+  })
+  if (!res.ok) throw new Error('Failed to update action item')
   return res.json()
 }

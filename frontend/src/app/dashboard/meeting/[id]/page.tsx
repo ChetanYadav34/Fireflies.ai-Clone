@@ -1,25 +1,66 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
-import { Play, Pause, Search, Share2, Download, MoreHorizontal, MessageSquare, Bot, Clock, Calendar, Users, List, Sparkles, Mic, ChevronDown, RotateCcw, RotateCw, Star, Edit3, ThumbsUp, ThumbsDown, Maximize, Minimize } from 'lucide-react'
-import { meetingSummaryDetailed, meetingTranscript } from '@/lib/meeting-data'
+import { Play, Pause, Search, Share2, Download, MoreHorizontal, MessageSquare, Bot, Clock, Calendar, Users, List, Sparkles, Mic, ChevronDown, RotateCcw, RotateCw, Star, Edit3, ThumbsUp, ThumbsDown, Maximize, Minimize, CheckSquare, Square } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { fetchMeetingById, fetchMeetingTranscript, fetchMeetingSummary, fetchMeetingActionItems, updateActionItem, Meeting, TranscriptSegment, Summary, ActionItem } from '@/lib/api'
 
 export default function MeetingRecordPage() {
+  const params = useParams()
+  const meetingId = params.id as string
+
+  const [meeting, setMeeting] = useState<Meeting | null>(null)
+  const [transcript, setTranscript] = useState<TranscriptSegment[]>([])
+  const [summary, setSummary] = useState<Summary | null>(null)
+  const [actionItems, setActionItems] = useState<ActionItem[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [activeTab, setActiveTab] = useState<'askfred' | 'transcript'>('transcript')
   const [isFullScreen, setIsFullScreen] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   
-  // Interactive states
   const [rating, setRating] = useState(0)
   const [isStarred, setIsStarred] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [isDisliked, setIsDisliked] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    if (!meetingId) return;
+    async function loadData() {
+      try {
+        const [m, t, s, a] = await Promise.all([
+          fetchMeetingById(meetingId),
+          fetchMeetingTranscript(meetingId),
+          fetchMeetingSummary(meetingId),
+          fetchMeetingActionItems(meetingId)
+        ])
+        setMeeting(m)
+        setTranscript(t)
+        setSummary(s)
+        setActionItems(a)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [meetingId])
+
+  const toggleActionItem = async (item: ActionItem) => {
+    try {
+      const updated = await updateActionItem(item.id, !item.is_completed)
+      setActionItems(prev => prev.map(a => a.id === item.id ? updated : a))
+    } catch(err) {
+      console.error(err)
+    }
+  }
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -48,19 +89,17 @@ export default function MeetingRecordPage() {
     }
   }
 
-  // Format time in mm:ss
   const formatTime = (time: number) => {
     const mins = Math.floor(time / 60)
     const secs = Math.floor(time % 60)
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const actualDuration = duration && duration > 1 ? duration : 426
+  const actualDuration = duration && duration > 1 ? duration : (meeting?.duration_seconds || 426)
 
-  // Find the currently active transcript block
   const getActiveBlockIndex = () => {
-    for (let i = meetingTranscript.length - 1; i >= 0; i--) {
-      if (currentTime >= meetingTranscript[i].seconds) {
+    for (let i = transcript.length - 1; i >= 0; i--) {
+      if (currentTime >= transcript[i].start_time / 1000) {
         return i
       }
     }
@@ -68,15 +107,22 @@ export default function MeetingRecordPage() {
   }
   const activeBlockIndex = getActiveBlockIndex()
 
+  if (loading) {
+    return <AppLayout><div className="flex items-center justify-center h-full w-full">Loading...</div></AppLayout>
+  }
+
+  if (!meeting) {
+    return <AppLayout><div className="flex items-center justify-center h-full w-full">Meeting not found.</div></AppLayout>
+  }
+
   return (
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white w-full">
-        {/* Meeting Header */}
         <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span>#My Meetings</span>
             <span className="text-gray-300">/</span>
-            <span className="font-medium text-gray-900">fireflies test</span>
+            <span className="font-medium text-gray-900">{meeting.title}</span>
             <MoreHorizontal className="w-4 h-4 ml-2" />
           </div>
           <div className="flex items-center gap-3">
@@ -93,9 +139,7 @@ export default function MeetingRecordPage() {
           </div>
         </div>
 
-        {/* Main Split View */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left Panel: Notes (Collapses in Full Screen) */}
           <div className={`${isFullScreen ? 'w-24 shrink-0' : 'flex-1'} flex flex-col overflow-y-auto border-r border-gray-100 transition-all duration-300`}>
             <div className={`sticky top-0 bg-white z-10 p-4 pb-0 flex ${isFullScreen ? 'flex-col gap-2 items-center' : 'justify-center'}`}>
               <div className={`flex ${isFullScreen ? 'flex-col gap-2 w-full' : 'bg-gray-100 p-1 rounded-lg'}`}>
@@ -119,30 +163,42 @@ export default function MeetingRecordPage() {
                 <h2 className="font-bold text-gray-900 text-lg mb-6">Notes</h2>
                 
                 <div className="space-y-4">
-                  {meetingSummaryDetailed.slice(2).map((line, idx) => {
-                    if (line === '') return <div key={idx} className="h-4" />
-                    if (line.match(/^\d\./)) {
-                      return <h3 key={idx} className="font-bold text-gray-900 text-[15px] mt-6 mb-2">{line}</h3>
-                    }
-                    if (line.startsWith('•')) {
-                      return (
-                        <div key={idx} className="flex gap-3 text-gray-800 text-[14px] leading-relaxed ml-2 font-semibold">
-                          <span className="text-gray-400 mt-0.5">•</span>
-                          <span>{line.substring(2)}</span>
+                  {summary ? (
+                    <>
+                      <p className="text-gray-700 text-[14px] leading-relaxed">{summary.overview_text}</p>
+                      {summary.bullet_points && summary.bullet_points.length > 0 && (
+                        <div className="mt-4">
+                          {summary.bullet_points.map((pt, idx) => (
+                            <div key={idx} className="flex gap-3 text-gray-800 text-[14px] leading-relaxed ml-2 font-semibold">
+                              <span className="text-gray-400 mt-0.5">•</span>
+                              <span>{pt}</span>
+                            </div>
+                          ))}
                         </div>
-                      )
-                    }
-                    if (line.startsWith('  ')) {
-                      return (
-                        <div key={idx} className="flex gap-3 text-gray-500 text-[14px] leading-relaxed ml-8">
-                          <span className="text-gray-300 mt-0.5">◦</span>
-                          <span>{line.trim()}</span>
-                        </div>
-                      )
-                    }
-                    return <p key={idx} className="text-gray-700 text-[14px] leading-relaxed">{line}</p>
-                  })}
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-gray-500 italic">No summary available for this meeting.</p>
+                  )}
                 </div>
+
+                {actionItems.length > 0 && (
+                  <>
+                    <h3 className="font-bold text-gray-900 text-lg mt-12 mb-4">Action Items</h3>
+                    <div className="space-y-3">
+                      {actionItems.map(item => (
+                        <div key={item.id} className="flex items-start gap-3 p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                          <button onClick={() => toggleActionItem(item)} className="mt-0.5 text-primary">
+                            {item.is_completed ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-400" />}
+                          </button>
+                          <span className={`text-sm ${item.is_completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                            {item.task_description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 <div className="mt-12 flex items-center justify-center gap-3 bg-gray-50 py-3 rounded-xl border border-gray-100">
                   <span className="text-sm text-gray-500">Did you like the summary?</span>
@@ -160,9 +216,7 @@ export default function MeetingRecordPage() {
             )}
           </div>
 
-          {/* Right Panel: Transcript */}
           <div className={`${isFullScreen ? 'flex-1' : 'w-[450px] shrink-0'} flex flex-col bg-white transition-all duration-300`}>
-            {/* Tabs Header */}
             <div className="flex items-center gap-6 px-6 border-b border-gray-100 shrink-0">
               <button 
                 onClick={() => setActiveTab('askfred')}
@@ -189,7 +243,6 @@ export default function MeetingRecordPage() {
               </button>
             </div>
 
-            {/* Tab Content */}
             <div className="flex-1 overflow-y-auto">
               {activeTab === 'transcript' ? (
                 <div className={`p-6 pb-24 mx-auto ${isFullScreen ? 'max-w-4xl' : 'w-full'}`}>
@@ -203,33 +256,38 @@ export default function MeetingRecordPage() {
                   </div>
 
                   <div className="space-y-6">
-                    {meetingTranscript.map((block, idx) => {
-                      const isActive = idx === activeBlockIndex
-                      return (
-                        <div key={idx} className={`flex gap-3 group p-3 transition-colors rounded-r-lg ${isActive ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
-                          <div className="w-6 h-6 rounded bg-[#4CAF50] text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
-                            S
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <span className="font-semibold text-gray-900 text-sm">{block.speaker}</span>
-                              <button 
-                                onClick={() => seekTo(block.seconds)}
-                                className={`text-xs font-medium hover:underline cursor-pointer ${isActive ? 'text-primary' : 'text-gray-400 hover:text-primary'}`}
-                              >
-                                {block.time}
-                              </button>
+                    {transcript.length === 0 ? (
+                      <div className="text-center text-gray-500 italic py-8">No transcript available.</div>
+                    ) : (
+                      transcript.map((block, idx) => {
+                        const isActive = idx === activeBlockIndex
+                        const seconds = block.start_time / 1000
+                        return (
+                          <div key={idx} className={`flex gap-3 group p-3 transition-colors rounded-r-lg ${isActive ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}>
+                            <div className="w-6 h-6 rounded bg-[#4CAF50] text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                              {block.speaker_name.charAt(0).toUpperCase()}
                             </div>
-                            <p 
-                              onClick={() => seekTo(block.seconds)}
-                              className={`text-[14px] leading-relaxed cursor-text transition-colors ${isActive ? 'text-gray-900 font-medium' : 'text-gray-600'}`}
-                            >
-                              {block.text}
-                            </p>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="font-semibold text-gray-900 text-sm">{block.speaker_name}</span>
+                                <button 
+                                  onClick={() => seekTo(seconds)}
+                                  className={`text-xs font-medium hover:underline cursor-pointer ${isActive ? 'text-primary' : 'text-gray-400 hover:text-primary'}`}
+                                >
+                                  {formatTime(seconds)}
+                                </button>
+                              </div>
+                              <p 
+                                onClick={() => seekTo(seconds)}
+                                className={`text-[14px] leading-relaxed cursor-text transition-colors ${isActive ? 'text-gray-900 font-medium' : 'text-gray-600'}`}
+                              >
+                                {block.text}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })
+                    )}
                   </div>
                 </div>
               ) : (
@@ -273,7 +331,6 @@ export default function MeetingRecordPage() {
           </div>
         </div>
 
-        {/* Audio Element (Hidden) */}
         <audio 
           ref={audioRef}
           src="/meeting-audio.mp3"
@@ -283,9 +340,7 @@ export default function MeetingRecordPage() {
           className="hidden"
         />
 
-        {/* Sticky Player Footer */}
         <div className="h-16 bg-white border-t border-gray-200 shrink-0 flex items-center px-6 relative z-20">
-          {/* Top Edge Progress Bar */}
           <div 
             className="absolute top-0 left-0 h-[3px] bg-gray-200 w-full cursor-pointer group"
             onClick={(e) => {
